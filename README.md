@@ -1,95 +1,127 @@
 # 📞 Agenda Semanal de Cobrança – Automação de Mailings Telefônicos
-Ferramenta desenvolvida em Python (Tkinter + Selenium) para automatizar a geração e o envio de mailings telefônicos para a plataforma OLOS, garantindo a continuidade operacional durante o período de férias dos analistas.
+Ferramenta desenvolvida em Python (Tkinter + Selenium) para automatizar a geração e o envio de mailings telefônicos para a plataforma OLOS — agora com **filtro opcional de Portfolio (infoad)** e novos tipos de mailing.
 
 ---
 
-### 🎯 Objetivo do Projeto
-Com a equipe de analistas entrando de férias, surgiu a necessidade de uma solução simples e automatizada que permitisse a qualquer colaborador gerar e enviar os mailings telefônicos do dia sem conhecimento técnico ou acesso ao banco.  
-Esta ferramenta cumpre exatamente esse papel: **gera o mailing completo e envia automaticamente para a OLOS com apenas um clique e o fechamento da janela**.
+## 🎯 Objetivo do Projeto
+Com a equipe entrando em férias, surgiu a necessidade de uma solução simples e automatizada que permitisse a qualquer colaborador gerar e enviar os mailings telefônicos sem conhecimento técnico ou acesso ao banco.
+
+Esta ferramenta cumpre exatamente esse papel:
+
+- Gera o mailing automaticamente  
+- Aplica filtros opcionais por **infoad**  
+- Formata o CSV corretamente  
+- Abre e envia para a OLOS com Selenium  
+- Todo o processo ocorre com **1 clique e o fechamento da janela**
 
 ---
 
 # 🖥️ Visão Geral da Aplicação
-A ferramenta permite:
+A aplicação permite:
 
-- Selecionar **carteira** (517, 518, 519).
-- Selecionar o **mailing** do dia:
-  - Quebras & Rejeitadas
-  - CPC (Contato Pessoa Certa)
-  - Nunca Contatados
-- Executar consultas SQL no banco Gecobi.
-- Gerar automaticamente o arquivo CSV formatado.
-- Ao fechar a janela, abrir e logar na OLOS automaticamente.
-- Enviar o arquivo gerado para importação.
+- Selecionar a **carteira** (517, 518, 519)  
+- Selecionar o **mailing desejado**  
+- Aplicar **filtro opcional por Portfolio (infoad)**  
+- Executar consultas SQL completas diretamente no banco  
+- Gerar automaticamente o CSV no Desktop  
+- Enviar automaticamente para a OLOS ao fechar a interface  
 
-Tudo isso com interface gráfica simples e intuitiva.
+Interface projetada para ser simples, rápida e acessível.
 
 ---
 
 # 📂 Mailings Disponíveis
 
 ### **1. Quebras & Rejeitadas (Segunda-feira)**
-Contas com acordos quebrados ou rejeitados, problemas de contato e alto potencial de recuperação.
+Contas com acordos quebrados ou rejeitados, priorizando recuperação imediata.
 
 ### **2. CPC — Contato Pessoa Certa (Terça-feira)**
-Foco em clientes que tiveram contato efetivo (classificação CPC) recentemente.
+Clientes com histórico recente de contato efetivo (status CPC).
 
 ### **3. Nunca Contatados (Quarta-feira)**
-Clientes com ausência de contato nos últimos 60 dias, visando ampliar o alcance das campanhas.
+Clientes sem qualquer contato nos últimos 60 dias.
 
-Cada mailing possui sua própria query SQL otimizada e adaptada às regras do negócio.
+### **4. Mailing Geral (Quinta-feira) — *Novo***
+Traz toda a carteira, sem restrições. Ideal para campanhas amplas.
+
+### **5. Base Recente (Sexta-feira) — *Novo***
+Somente cadastros novos, inseridos nos últimos 2 meses (data_cad = data_arq).
 
 ---
 
 # 🗂️ Carteiras Suportadas
 
-| Código | Nome da Carteira |
-|--------|------------------|
-| **517** | Itapeva Autos |
-| **518** | DivZero |
-| **519** | Cedidas |
+| Código | Nome da Carteira       |
+|--------|-------------------------|
+| **517** | Itapeva Autos         |
+| **518** | DivZero               |
+| **519** | Cedidas               |
 
-O código da carteira também define o prefixo do arquivo CSV gerado.
+O código selecionado determina o prefixo do arquivo gerado.
+
+---
+
+# 🔍 Filtro Opcional por Portfolio (infoad) — *Novo*
+A aplicação agora carrega automaticamente todos os infoads do banco:
+
+```sql
+SELECT DISTINCT infoad 
+FROM cadastros_tb
+WHERE cod_cli IN (517, 518, 519)
+ORDER BY 1;
+```
+
+### Como funciona:
+
+- Se nenhum infoad for selecionado → Mailing traz **toda a carteira**
+- Se 1 infoad for selecionado → Filtra apenas esse grupo
+- Se vários forem selecionados → Aplica `IN (...)` automaticamente na SQL  
+
+Todos os valores recebem escape de segurança para evitar erros SQL.
 
 ---
 
 # 📄 Geração Automática de CSV
-Após clicar em **Gerar Mailing**, a ferramenta:
+Após clicar em **Gerar Mailing**, o sistema:
 
-1. Executa a consulta SQL referente ao mailing escolhido.
-2. Obtém todos os dados diretamente do banco Gecobi.
-3. Gera um CSV no Desktop do usuário.
-4. Usa o padrão:
+1. Executa a SQL correspondente ao mailing  
+2. Aplica, se houver, o filtro por infoad  
+3. Gera um CSV no Desktop  
+4. Nomeia automaticamente no formato:
 
 ```
-AutosPF_QuebrasRejeitadas_YYYYMMDD_HHMMSS.csv
-DivZeroPF_CPC_YYYYMMDD_HHMMSS.csv
-CedidasPF_NuncaContatados_YYYYMMDD_HHMMSS.csv
+AutosPF_QuebrasRejeitadas_20250101_101500.csv
+DivZeroPF_CPC_20250101_101500.csv
+CedidasPF_NuncaContatados_20250101_101500.csv
 ```
 
-Colunas sensíveis como CPF, telefones, datas e BindingID são preservadas como texto.
+### ✔ Novo comportamento
+Se infoads forem selecionados, eles são incluídos no nome:
+
+```
+AutosPF_Geral_BradescoIV_BradescoVII_20250101_101500.csv
+```
+
+Telefones, CPF e datas são preservados como texto.
 
 ---
 
 # 🤖 Envio Automático para OLOS
-Ao **fechar a interface**, a automação inicia:
+Ao **fechar a janela**, a automação:
 
-1. Acessa a URL da OLOS.
-2. Realiza login com credenciais do arquivo SA_Credencials.txt.
-3. Navega até:
-   - Painel de Customizações  
-   - Import/Export Web  
-   - ImportFiles  
-4. Seleciona **Enviar Mailing**.
-5. Faz upload do CSV gerado.
-6. Confirma o envio na tela de importação.
+1. Abre o Chrome  
+2. Acessa a URL da OLOS  
+3. Faz login automaticamente  
+4. Navega até ImportFiles  
+5. Faz upload do arquivo  
+6. Confirma o envio  
 
-Nenhuma ação adicional do usuário é necessária.
+Nenhuma intervenção manual é necessária.
 
 ---
 
 # 🔑 Arquivo de Credenciais
-A aplicação utiliza:
+O sistema utiliza:
 
 ```
 \\fs01\ITAPEVA ATIVAS\DADOS\SA_Credencials.txt
@@ -109,48 +141,48 @@ OLOS_USER=
 OLOS_PASS=
 ```
 
-O sistema lê esse arquivo automaticamente.
-
 ---
 
 # 🛠 Tecnologias Utilizadas
-
-- **Python 3**
-- **Tkinter** → Interface gráfica
-- **MySQL Connector** → Conexão com banco Gecobi
-- **Selenium WebDriver (Chrome)** → Automação da OLOS
-- **CSV Writer**
-- **XPath e CSS Selectors**
+- Python 3  
+- Tkinter (GUI)  
+- MySQL Connector  
+- Selenium WebDriver + ChromeDriver  
+- CSV Writer  
+- XPath / CSS Selectors  
 
 ---
 
 # 🚀 Como Usar
 
-1. Verifique se o ChromeDriver está instalado e compatível.
-2. Garanta que o arquivo de credenciais está correto.
+1. Certifique-se de que o ChromeDriver é compatível com seu Chrome  
+2. Verifique o arquivo de credenciais  
 3. Execute o programa:
    ```bash
    python agenda_mailing.py
    ```
-4. Na interface:
-   - Escolha a carteira
-   - Escolha o mailing
-   - Clique **Gerar Mailing**
-5. Após a mensagem de sucesso, **feche a janela**.
-6. A automação abrirá a OLOS e enviará o arquivo automaticamente.
+4. Escolha:
+   - Carteira  
+   - Tipo de mailing  
+   - (Opcional) Infoads  
+5. Clique em **Gerar Mailing**  
+6. Após a mensagem de sucesso, **feche a janela**  
+7. A automação irá iniciar o envio para a OLOS  
 
 ---
 
 # 🧩 Finalidade Operacional
-Este projeto foi criado **para substituir temporariamente os analistas que estarão de férias**, garantindo que:
+Criado para garantir que:
 
-- Os mailings telefônicos continuem sendo gerados,
-- O envio diário para a OLOS não seja interrompido,
-- Qualquer colaborador consiga executar o processo sem dificuldades.
+- Os mailings telefônicos continuem rodando diariamente  
+- O processo não dependa de analistas especializados  
+- Qualquer colaborador consiga utilizá-lo com segurança  
+- A operação continue mesmo durante períodos de férias  
+
+Automação robusta, simples e confiável.
 
 ---
 
 # 👨‍💻 Autor
-Ferramenta desenvolvida para garantir continuidade e eficiência operacional na rotina de cobrança, com foco em simplicidade, automação e confiabilidade.
+Ferramenta desenvolvida com foco em **eficiência, simplicidade e segurança operacional**, garantindo a continuidade da operação de cobrança.
 
----
