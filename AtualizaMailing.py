@@ -14,12 +14,7 @@ import selenium.webdriver.chrome.options as chrome_options_mod
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.action_chains import ActionChains
-from selenium.common.exceptions import (
-    ElementClickInterceptedException,
-    StaleElementReferenceException,
-    TimeoutException,
-    WebDriverException,
-)
+from selenium.common.exceptions import ElementClickInterceptedException,StaleElementReferenceException,TimeoutException,WebDriverException
 
 # ======================================================================
 # SQLs — agora com {tel_limit} e com filtro opcional {vlrparc_having}
@@ -476,8 +471,11 @@ telefones AS (
       AND cad.cod_cad NOT IN(
             SELECT h.cod_cli
             FROM hist_tb h
+            left join stcob_tb s on s.st = h.ocorr
             WHERE h.cod_cli = cad.cod_cad
-              AND h.data_at >= CURDATE() - INTERVAL 60 DAY
+              AND h.data_at >= CURDATE() - INTERVAL 30 DAY
+              AND (s.bsc NOT LIKE '%sistema%' OR s.bsc NOT LIKE '' OR s.bsc IS NOT NULL)
+              AND h.cod_usu <> '999'
             GROUP BY h.cod_cli
       )
       AND (tel.status IN (2, 4, 5, 6, 1)
@@ -914,11 +912,54 @@ LEFT JOIN cpc_ultimo cpc
 WHERE t.cod_cli = {cod_cli};
 """
 
+
+
+
+SQL_INFOADS_CONTAGEM = """
+SELECT
+    infoad,
+    COUNT(*) AS qtd_contratos
+FROM cadastros_tb
+WHERE cod_cli IN (517,518,519)
+  AND infoad IS NOT NULL
+  AND infoad <> ''
+  AND stcli <> 'INA'
+  AQUI AND COD_CLI = USUARIO ESCOLHE 
+GROUP BY infoad
+ORDER BY infoad;
+"""
+
+
+
+
+SQL_INFOADS_CONTAGEM = """
+SELECT
+    infoad,
+    COUNT(*) AS qtd_contratos
+FROM cadastros_tb
+WHERE cod_cli = %s
+  AND infoad IS NOT NULL
+  AND infoad <> ''
+  AND stcli <> 'INA'
+GROUP BY infoad
+ORDER BY infoad;
+"""
+
+SQL_INFOADS_TOTAL = """
+SELECT
+    COUNT(*) AS total_contratos
+FROM cadastros_tb
+WHERE cod_cli = %s
+  AND infoad IS NOT NULL
+  AND infoad <> ''
+  AND stcli <> 'INA';
+"""
+
 MAILINGS = [
-    {"id": "seg_quebras_rcs", "titulo": "Quebras & Rejeitadas", "descricao": "Contas com problemas de contato e execução de estratégias.", "dia_recomendado": 0},
+    {"id": "seg_quebras_rcs", "titulo": "Quebras & Rejeitadas", "descricao": "Contratos onde houve proposta quebrada ou rejeitada.", "dia_recomendado": 0},
     {"id": "ter_cpc", "titulo": "CPC (Contato Pessoa Certa)", "descricao": "Foco em estabelecer conexões efetivas com os responsáveis pelos débitos.", "dia_recomendado": 1},
-    {"id": "qua_nunca_contatados", "titulo": "Nunca Contatados", "descricao": "Carteiras novas e clientes sem histórico de contato recente para maximizar alcance.", "dia_recomendado": 2},
-    {"id": "geral", "titulo": "Mailing Geral", "descricao": "Base geral com acordos, valores, garantias e último CPC (quando houver), sem filtro de CPC ou nunca contatados.", "dia_recomendado": 3},
+    {"id": "qua_nunca_contatados", "titulo": "Não Contactados no Ultimo Mês", "descricao": "Contratos que não houve acionamento no ultimo 1 mês pela operação interna", "dia_recomendado": 2},
+    {"id": "geral", "titulo": "Mailing Geral", "descricao": "Base Completa", "dia_recomendado": 3},
     {"id": "base_recente", "titulo": "Base Recente", "descricao": "Base nova nos últimos 2 meses (cadastros recentes).", "dia_recomendado": 4},
 ]
 
@@ -926,6 +967,7 @@ CARTEIRAS = {"517": "Itapeva Autos", "518": "DivZero", "519": "Cedidas"}
 
 CRED_PATH = r"\\fs01\ITAPEVA ATIVAS\DADOS\SA_Credencials.txt"
 DB_CONFIG = None
+
 
 # ======================================================================
 # DB
@@ -948,11 +990,13 @@ def carregar_config_db():
         "port": int(cfg_raw.get("GECOBI_PORT", 3306)),
     }
 
+
 def get_db_connection():
     global DB_CONFIG
     if DB_CONFIG is None:
         DB_CONFIG = carregar_config_db()
     return mysql.connector.connect(**DB_CONFIG)
+
 
 # ======================================================================
 # CSV (streaming)
@@ -985,6 +1029,7 @@ def _build_csv_path(mailing_id, carteira_id, infoads=None):
     prefixo = f"{base}_{sufixo}{info_part}"
     return os.path.join(desktop, f"{prefixo}_{timestamp}.csv")
 
+
 def salvar_csv_stream(mailing_id, carteira_id, cursor, infoads=None, chunk_size=5000):
     caminho = _build_csv_path(mailing_id, carteira_id, infoads)
     colunas = [c[0] for c in cursor.description]
@@ -1002,6 +1047,7 @@ def salvar_csv_stream(mailing_id, carteira_id, cursor, infoads=None, chunk_size=
 
     return caminho
 
+
 # ======================================================================
 # Selenium helpers
 # ======================================================================
@@ -1013,6 +1059,7 @@ def wait_dom_ready(driver, timeout=20):
         )
     except Exception:
         pass
+
 
 def switch_to_last_window(driver, timeout=10):
     end = time.time() + timeout
@@ -1033,6 +1080,7 @@ def switch_to_last_window(driver, timeout=10):
         return last
     raise TimeoutException("Sem janelas/abas disponíveis para trocar.")
 
+
 def click_robusto(driver, locator, timeout=15):
     el = WebDriverWait(driver, timeout).until(EC.presence_of_element_located(locator))
     driver.execute_script("arguments[0].scrollIntoView({block:'center'});", el)
@@ -1052,6 +1100,7 @@ def click_robusto(driver, locator, timeout=15):
             ActionChains(driver).move_to_element(el).pause(0.2).click(el).perform()
             return
 
+
 def click_e_trocar_se_abrir_nova_aba(driver, locator, timeout_click=20, timeout_newtab=8):
     handles_antes = set(driver.window_handles)
     click_robusto(driver, locator, timeout=timeout_click)
@@ -1069,15 +1118,18 @@ def click_e_trocar_se_abrir_nova_aba(driver, locator, timeout_click=20, timeout_
     wait_dom_ready(driver, timeout=20)
     return False
 
+
 def _encontrar_campo_usuario(driver):
     return WebDriverWait(driver, 15).until(
         EC.element_to_be_clickable((By.XPATH, "//input[@type='text' or @type='email']"))
     )
 
+
 def _encontrar_campo_senha(driver):
     return WebDriverWait(driver, 15).until(
         EC.element_to_be_clickable((By.XPATH, "//input[@type='password']"))
     )
+
 
 # ======================================================================
 # Fluxo OLOS
@@ -1114,9 +1166,9 @@ def abrir_e_logar_olos(caminho_csv=None):
         pass_input.send_keys(senha)
 
         try:
-            click_robusto(driver, (By.XPATH, "//button[@type='submit' or contains(.,'Entrar') or contains(.,'Login')]"), timeout=15)
-        except Exception:
             click_robusto(driver, (By.XPATH, "//input[@type='submit' or contains(@value,'Entrar') or contains(@value,'Login')]"), timeout=15)
+        except Exception:
+            click_robusto(driver, (By.XPATH, "//button[@type='submit' or contains(.,'Entrar') or contains(.,'Login')]"), timeout=15)
 
         wait_dom_ready(driver)
 
@@ -1173,7 +1225,9 @@ def abrir_e_logar_olos(caminho_csv=None):
         print("[ERRO]", e)
         traceback.print_exc()
     finally:
-        pass
+        if driver:
+            driver.quit()
+
 
 # ======================================================================
 # Tkinter App
@@ -1185,6 +1239,7 @@ class AgendaMailingApp(tk.Tk):
         self.caminho_mailing = None
         self.infoads = []
         self.listbox_infoad = None
+        self.lbl_total_infoads = None  # label do total
 
         self.title("Agenda Semanal de Cobrança")
         self.configure(bg="#f5f5f5")
@@ -1196,13 +1251,23 @@ class AgendaMailingApp(tk.Tk):
         self.carteira_var = tk.StringVar(value="517")
 
         self._layout()
+
+        # >>> IMPORTANTE: recarrega lista quando trocar carteira
+        self._bind_carteira_change()
+
+        # carrega a lista já na carteira padrão
         self._carregar_infoads_ui()
+
         self._selecionar_mailing_auto()
         self.protocol("WM_DELETE_WINDOW", self._on_close)
 
     def _configurar_estilos(self):
         style = ttk.Style(self)
         style.theme_use("clam")
+
+    def _bind_carteira_change(self):
+        # trace para quando o usuário trocar 517/518/519
+        self.carteira_var.trace_add("write", lambda *_: self._carregar_infoads_ui())
 
     def _layout(self):
         header = ttk.Frame(self)
@@ -1214,10 +1279,12 @@ class AgendaMailingApp(tk.Tk):
             text=(
                 "Instruções de uso:\n"
                 " Escolher uma carteira e um mailing,\n"
-                " (opcional) filtrar por Portfolio (infoad),\n"
-                " (opcional) filtrar por VlrParc (>=),\n"
-                " escolher quantidade de telefones,\n"
-                " depois clicar em Gerar Mailing."
+                " (opcional) Filtrar por Portfolio,\n"
+                " (opcional) Filtrar por Soma dos Contratos (Maior ou Igual),\n"
+                " Escolher quantidade de telefones,\n"
+                " Depois clicar em Gerar Mailing,\n"
+                " O Arquivo CSV será salvo na área de trabalho (momentaneamente), \n"
+                "Após fechar o programa o fluxo do OLOS será iniciado automaticamente."
             ),
             font=("Segoe UI", 10),
         ).pack(anchor="w", pady=(5, 10))
@@ -1252,7 +1319,7 @@ class AgendaMailingApp(tk.Tk):
         self.combo_tel.set("7")
         self.combo_tel.pack(side="left", padx=(0, 18))
 
-        ttk.Label(filtros_top, text="VlrParc mín (>=):", font=("Segoe UI", 10, "bold")).pack(side="left", padx=(0, 8))
+        ttk.Label(filtros_top, text="Valor da Soma de Todos os Contratos :", font=("Segoe UI", 10, "bold")).pack(side="left", padx=(0, 8))
         self.entry_vlrparc = ttk.Entry(filtros_top, width=10)
         self.entry_vlrparc.pack(side="left")
         ttk.Label(filtros_top, text="(vazio = sem filtro)", font=("Segoe UI", 9)).pack(side="left", padx=(8, 0))
@@ -1280,14 +1347,18 @@ class AgendaMailingApp(tk.Tk):
         self.lbl_desc = ttk.Label(right, wraplength=560, font=("Segoe UI", 9), text="Selecione um mailing à esquerda.")
         self.lbl_desc.pack(anchor="w", pady=5)
 
-        filtro_frame = ttk.LabelFrame(right, text="Filtro opcional por Portfolio (infoad)")
+        filtro_frame = ttk.LabelFrame(right, text="Filtro opcional por Portfolio")
         filtro_frame.pack(fill="both", expand=True, pady=(10, 0))
 
         ttk.Label(
             filtro_frame,
-            text="Selecione 0 ou mais infoads.\nSem seleção = traz todos.",
+            text="Selecione 1 ou mais Portfolios.\nQuando não selecionar nada, irá puxar todos os portfolios.",
             font=("Segoe UI", 9),
         ).pack(anchor="w", pady=(2, 5))
+
+        # >>> NOVO: label do total
+        self.lbl_total_infoads = ttk.Label(filtro_frame, text="TOTAL (0)", font=("Segoe UI", 9, "bold"))
+        self.lbl_total_infoads.pack(anchor="w", pady=(0, 6))
 
         list_frame = ttk.Frame(filtro_frame)
         list_frame.pack(fill="both", expand=True)
@@ -1308,26 +1379,55 @@ class AgendaMailingApp(tk.Tk):
         self.btn_gerar = ttk.Button(rodape, text="Gerar Mailing", command=self.gerar_mailing)
         self.btn_gerar.pack(side="right")
 
+    # ==========================================================
+    # >>> ALTERADO: carrega infoads conforme carteira escolhida
+    #     e mostra TOTAL de contratos na carteira
+    # ==========================================================
     def _carregar_infoads_ui(self):
         try:
+            cod_cli = int(self.carteira_var.get() or "517")
+
             conn = get_db_connection()
             cur = conn.cursor()
-            cur.execute(
-                "SELECT DISTINCT infoad FROM cadastros_tb "
-                "WHERE cod_cli IN (517,518,519) "
-                "  AND infoad IS NOT NULL AND infoad <> '' "
-                "ORDER BY 1;"
-            )
-            rows = cur.fetchall()
-            conn.close()
-            self.infoads = [r[0] for r in rows if r[0] is not None]
 
-            self.listbox_infoad.delete(0, tk.END)
-            for val in self.infoads:
-                self.listbox_infoad.insert(tk.END, val)
-        except Exception as e:
-            print("Erro ao carregar infoads:", e)
+            # total
+            cur.execute(SQL_INFOADS_TOTAL, (cod_cli,))
+            total_row = cur.fetchone()
+            total = int(total_row[0] or 0) if total_row else 0
+
+            # lista por infoad
+            cur.execute(SQL_INFOADS_CONTAGEM, (cod_cli,))
+            rows = cur.fetchall()
+
+            cur.close()
+            conn.close()
+
             self.infoads = []
+            self.listbox_infoad.delete(0, tk.END)
+
+            # atualiza label total
+            if self.lbl_total_infoads:
+                self.lbl_total_infoads.config(text=f"TOTAL ({total})")
+
+            for infoad, qtd in rows:
+                if not infoad:
+                    continue
+                qtd_int = int(qtd or 0)
+                self.infoads.append({"infoad": infoad, "qtd": qtd_int})
+                self.listbox_infoad.insert(tk.END, f"{infoad} ({qtd_int})")
+
+        except Exception as e:
+            print("Erro ao carregar Portfolios:", e)
+            self.infoads = []
+            try:
+                self.listbox_infoad.delete(0, tk.END)
+            except Exception:
+                pass
+            try:
+                if self.lbl_total_infoads:
+                    self.lbl_total_infoads.config(text="TOTAL (0)")
+            except Exception:
+                pass
 
     def _selecionar_mailing_auto(self):
         hoje = datetime.today().weekday()
@@ -1342,15 +1442,17 @@ class AgendaMailingApp(tk.Tk):
         if m:
             self.lbl_desc.config(text=m["descricao"])
 
+    # devolve apenas o infoad "puro" (sem "(qtd)")
     def _get_selected_infoads(self):
         if not self.listbox_infoad:
             return []
         sel = self.listbox_infoad.curselection()
         valores = []
         for idx in sel:
-            v = self.listbox_infoad.get(idx)
-            if v:
-                valores.append(v)
+            v = self.listbox_infoad.get(idx) or ""
+            infoad_puro = v.split(" (", 1)[0].strip()
+            if infoad_puro:
+                valores.append(infoad_puro)
         return valores
 
     def _montar_filtro_infoad(self):
@@ -1361,19 +1463,14 @@ class AgendaMailingApp(tk.Tk):
         return " AND cad.infoad IN (" + ", ".join(escaped) + ")"
 
     def _parse_vlrparc_min(self):
-        """
-        Retorna (vlrparc_min_float ou None).
-        Aceita '1000', '1000.50' e '1000,50'.
-        """
         raw = (self.entry_vlrparc.get() or "").strip()
         if not raw:
             return None
         raw = raw.replace(".", "").replace(",", ".") if raw.count(",") == 1 and raw.count(".") >= 1 else raw.replace(",", ".")
-        # caso comum BR: "1.234,56" -> remove pontos e troca vírgula por ponto
         try:
             return float(raw)
         except Exception:
-            raise ValueError("VlrParc mínimo inválido. Use número (ex.: 500, 1000.50, 1500,00).")
+            raise ValueError("Soma do's Contrato's incorreta. Use número (ex.: 10000, 50000, 75000).")
 
     def _set_status(self, msg):
         self.lbl_status.config(text=msg)
@@ -1396,22 +1493,18 @@ class AgendaMailingApp(tk.Tk):
                 self.after(0, lambda: messagebox.showwarning("Selecione um mailing", "Escolha um mailing."))
                 return
             if not cod_cli:
-                self.after(0, lambda: messagebox.showwarning("Selecione a carteira", "Escolha uma carteira (517, 518 ou 519)."))
+                self.after(0, lambda: messagebox.showwarning("Selecione a Carteira", "Escolha uma carteira (517 - Autos, 518 - DivZero ou 519 - Cedidas)."))
                 return
 
-            # vlrparc (opcional)
             try:
                 vlrparc_min = self._parse_vlrparc_min()
             except Exception as e:
-                self.after(0, lambda: messagebox.showerror("Filtro VlrParc", str(e)))
+                self.after(0, lambda: messagebox.showerror("Filtro Portfolio", str(e)))
                 return
 
-            # Monta HAVING (ou vazio)
             if vlrparc_min is None:
                 vlrparc_having = ""
             else:
-                # aqui assumimos que o valor da parcela está em receber_tb como rec.vlrparc
-                # Se sua coluna tiver outro nome, me diga qual e eu ajusto em 1 linha.
                 vlrparc_having = f"HAVING SUM(rec.vlrparc) >= {vlrparc_min:.2f}"
 
             sql_template = {
@@ -1456,8 +1549,8 @@ class AgendaMailingApp(tk.Tk):
                     (
                         f"Mailing gerado!\nCarteira: {cod_cli} - {CARTEIRAS.get(cod_cli, '')}\n"
                         f"Qtd Telefones: {tel_limit} (colunas 1..7, restantes vazias)\n"
-                        f"Infoad filtro: {infoad_descr}\n"
-                        f"VlrParc (soma) filtro: {vlr_descr}\n\n"
+                        f"Portfolios Selecionados: {infoad_descr}\n"
+                        f"Soma do Valor do's Contrato's: {vlr_descr}\n\n"
                         f"Arquivo salvo em:\n{caminho}"
                     ),
                 )
@@ -1480,6 +1573,7 @@ class AgendaMailingApp(tk.Tk):
         self.destroy()
         if caminho:
             abrir_e_logar_olos(caminho)
+
 
 if __name__ == "__main__":
     app = AgendaMailingApp()
