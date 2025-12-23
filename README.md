@@ -16,6 +16,7 @@ VerFinal.zip → versão já compilada (pronta para uso operacional, sem precisa
 Uso diário na operação: VerFinal.zip
 
 Ajustes e evolução do projeto: VerFinal.py
+
 ---
 ## 🎯 Objetivo do Projeto
 
@@ -32,6 +33,7 @@ Formata o CSV corretamente
 Abre e envia para a OLOS com Selenium
 
 Todo o processo ocorre com 1 clique e o fechamento da janela
+
 ---
 ## 🖥️ Visão Geral da Aplicação
 
@@ -50,7 +52,9 @@ Gerar automaticamente o CSV no Desktop
 Enviar automaticamente para a OLOS ao fechar a interface
 
 Interface projetada para ser simples, rápida e acessível.
-___
+
+---
+
 ## 📂 Mailings Disponíveis
 1. Quebras & Rejeitadas (Segunda-feira)
 
@@ -71,6 +75,7 @@ Traz toda a carteira, sem restrições. Ideal para campanhas amplas.
 5. Base Recente (Sexta-feira) — Novo
 
 Somente cadastros novos, inseridos nos últimos 2 meses (data_cad = data_arq).
+
 --- 
 ## 🗂️ Carteiras Suportadas
 Código	Nome da Carteira
@@ -151,18 +156,6 @@ O sistema utiliza:
 \\fs01\ITAPEVA ATIVAS\DADOS\SA_Credencials.txt
 
 
-Com as chaves:
-
-GECOBI_HOST=
-GECOBI_USER=
-GECOBI_PASS=
-GECOBI_DB=
-GECOBI_PORT=
-
-OLOS_URL=
-OLOS_USER=
-OLOS_PASS=
-
 ## 🛠 Tecnologias Utilizadas
 
 Python 3
@@ -176,6 +169,7 @@ Selenium WebDriver + ChromeDriver
 CSV Writer
 
 XPath / CSS Selectors
+
 ---
 # 🚀 Como Usar
 ### ✅ Opção 1 — Versão Compilada (Recomendada)
