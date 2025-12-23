@@ -237,6 +237,6 @@ A operação continue mesmo durante períodos de férias
 
 Automação robusta, simples e confiável.
 
-👨‍💻 Autor
+## 👨‍💻 Autor
 
 Ferramenta desenvolvida com foco em eficiência, simplicidade e segurança operacional, garantindo a continuidade da operação de cobrança.
