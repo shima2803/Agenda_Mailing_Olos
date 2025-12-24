@@ -1,4 +1,4 @@
-# 📞 Agend Semanal de Cobrança – Automação de Mailings Telefônicos
+# 📞 Agenda Semanal de Cobrança – Automação de Mailings Telefônicos
 
 Ferramenta desenvolvida em Python (Tkinter + Selenium) para automatizar a geração e o envio de mailings telefônicos para a plataforma OLOS com filtro opcional de Portfolio (infoad) e novos tipos de mailing.
 
