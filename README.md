@@ -11,7 +11,7 @@ VerFinal.py → versão final do código-fonte (para manutenção, ajustes e aud
 
 VerFinal.zip → versão já compilada (pronta para uso operacional, sem precisar instalar Python).
 
-### 📌 Recomendação
+### 📌 Recomendaçã
 
 Uso diário na operação: VerFinal.zip
 
