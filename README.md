@@ -5,7 +5,7 @@ Ferramenta desenvolvida em Python (Tkinter + Selenium) para automatizar a geraç
 ---
 ## ✅ Versões do Projeto (Final e Compilada)
 
-Este repositório possui duas versões oficiais:
+Este repositório possui duas versões oficiai:
 
 VerFinal.py → versão final do código-fonte (para manutenção, ajustes e auditoria).
 
